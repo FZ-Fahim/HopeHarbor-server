@@ -1,7 +1,9 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { toNodeHandler } from 'better-auth/node';
 import { connectDB } from './config/db.js';
+import { initAuth } from './config/auth.js';
 
 dotenv.config();
 
@@ -19,7 +21,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health Check Route
+// Standard Health Check
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
@@ -28,14 +30,32 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-// Initialize DB and Start Server
 async function startServer() {
   try {
+    // 1. Connect to MongoDB
     await connectDB();
 
+    // 2. Initialize Better Auth
+    const authInstance = initAuth();
+
+    // 3. Mount Better Auth with Express 5 compatible Regex
+    app.all(/^\/api\/auth(\/.*)?$/, toNodeHandler(authInstance));
+
+    // 4. Verification Check Route
+    app.get('/api/auth-check', (req: Request, res: Response) => {
+      res.status(200).json({
+        success: true,
+        message: 'Better Auth is initialized and mounted successfully',
+        googleAuthEnabled: Boolean(
+          process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+        ),
+      });
+    });
+
+    // 5. Start Listening
     app.listen(PORT, () => {
-      console.log(`HopeHarbor Server running on port ${PORT}`);
-      console.log(`Accepting requests from: ${CLIENT_ORIGIN}`);
+      console.log(`🚀 HopeHarbor Server running on port ${PORT}`);
+      console.log(`🌐 Accepting requests from: ${CLIENT_ORIGIN}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
