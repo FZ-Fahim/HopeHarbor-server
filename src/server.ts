@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { connectDB } from './config/db.js';
 
 dotenv.config();
 
@@ -27,10 +28,21 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`HopeHarbor Server running on port ${PORT}`);
-  console.log(`Accepting requests from: ${CLIENT_ORIGIN}`);
-});
+// Initialize DB and Start Server
+async function startServer() {
+  try {
+    await connectDB();
+
+    app.listen(PORT, () => {
+      console.log(`HopeHarbor Server running on port ${PORT}`);
+      console.log(`Accepting requests from: ${CLIENT_ORIGIN}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export default app;
