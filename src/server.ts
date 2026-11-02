@@ -5,6 +5,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { connectDB } from './config/db.js';
 import { initAuth } from './config/auth.js';
 import eventRoutes from './routes/event.routes.js';
+import joinRoutes from './routes/join.routes.js';
 
 dotenv.config();
 
@@ -60,6 +61,10 @@ async function startServer() {
     });
 
     // 6. Mount Event Routes
+    app.use('/api/events', eventRoutes);
+
+    // 7. Mount Join Routes
+    app.use('/api/join', joinRoutes);
     app.use('/api/events', eventRoutes);
   } catch (error) {
     console.error('Failed to start server:', error);
