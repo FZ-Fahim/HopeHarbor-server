@@ -6,6 +6,8 @@ import { connectDB } from './config/db.js';
 import { initAuth } from './config/auth.js';
 import eventRoutes from './routes/event.routes.js';
 import joinRoutes from './routes/join.routes.js';
+import userRoutes from './routes/user.routes.js';
+import { notFoundHandler, globalErrorHandler } from './middlewares/error.middleware.js';
 
 dotenv.config();
 
@@ -23,7 +25,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Standard Health Check
+// Health Check
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
@@ -34,38 +36,29 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 async function startServer() {
   try {
-    // 1. Connect to MongoDB
+    // 1. Connect MongoDB
     await connectDB();
 
     // 2. Initialize Better Auth
     const authInstance = initAuth();
 
-    // 3. Mount Better Auth with Express 5 compatible Regex
+    // 3. Mount Better Auth Endpoint
     app.all(/^\/api\/auth(\/.*)?$/, toNodeHandler(authInstance));
 
-    // 4. Verification Check Route
-    app.get('/api/auth-check', (req: Request, res: Response) => {
-      res.status(200).json({
-        success: true,
-        message: 'Better Auth is initialized and mounted successfully',
-        googleAuthEnabled: Boolean(
-          process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-        ),
-      });
-    });
+    // 4. Mount Application Routes
+    app.use('/api/events', joinRoutes);
+    app.use('/api/events', eventRoutes);
+    app.use('/api/users', userRoutes);
 
-    // 5. Start Listening
+    // 5. 404 & Global Error Middlewares
+    app.use(notFoundHandler);
+    app.use(globalErrorHandler as any);
+
+    // 6. Start Listening
     app.listen(PORT, () => {
       console.log(`🚀 HopeHarbor Server running on port ${PORT}`);
       console.log(`🌐 Accepting requests from: ${CLIENT_ORIGIN}`);
     });
-
-    // 6. Mount Event Routes
-    app.use('/api/events', eventRoutes);
-
-    // 7. Mount Join Routes
-    app.use('/api/join', joinRoutes);
-    app.use('/api/events', eventRoutes);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
