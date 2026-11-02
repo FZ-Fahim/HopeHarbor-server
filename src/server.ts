@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { toNodeHandler } from 'better-auth/node';
 import { connectDB } from './config/db.js';
-import { initAuth } from './config/auth.js';
+import { auth } from './config/auth.js';
 import eventRoutes from './routes/event.routes.js';
 import joinRoutes from './routes/join.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -60,8 +60,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // Initialize Better Auth and Mount Routes
 try {
-  const authInstance = initAuth();
-  app.all(/^\/api\/auth(\/.*)?$/, toNodeHandler(authInstance));
+  app.all(/^\/api\/auth(\/.*)?$/, toNodeHandler(auth));
 } catch (e) {
   console.warn('Auth initialization deferred');
 }
