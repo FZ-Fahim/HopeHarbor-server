@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { toNodeHandler } from 'better-auth/node';
 import { connectDB } from './config/db.js';
 import { initAuth } from './config/auth.js';
+import eventRoutes from './routes/event.routes.js';
 
 dotenv.config();
 
@@ -57,6 +58,9 @@ async function startServer() {
       console.log(`🚀 HopeHarbor Server running on port ${PORT}`);
       console.log(`🌐 Accepting requests from: ${CLIENT_ORIGIN}`);
     });
+
+    // 6. Mount Event Routes
+    app.use('/api/events', eventRoutes);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
