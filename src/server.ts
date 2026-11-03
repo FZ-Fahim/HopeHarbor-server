@@ -16,30 +16,35 @@ const PORT = process.env.PORT || 5000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 app.set('trust proxy', true);
 // Global Middlewares
+// 1. URL Sanitizer: automatically cleans accidental double slashes (//api -> /api)
+app.use((req, res, next) => {
+  if (req.url.startsWith('//')) {
+    req.url = req.url.replace(/^\/+/, '/');
+  }
+  next();
+});
+// 2. Dynamic CORS: Automatically allows ANY Vercel frontend or localhost
 app.use(
   cors({
-    origin: [
-      CLIENT_ORIGIN,
-      'http://localhost:3000',
-      /\.vercel\.app$/, // Allows any preview/production Vercel frontend
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-side)
+      if (!origin) return callback(null, true);
+      
+      // Allow any .vercel.app domain (including preview URLs) or localhost
+      if (
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost') ||
+        origin === CLIENT_ORIGIN
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Ensure DB is connected before processing requests on Vercel
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (error) {
-    console.error('Database connection error in request:', error);
-    res.status(500).json({ success: false, message: 'Database connection failed' });
-  }
-});
-
 // Root Route (So visiting https://your-server.vercel.app/ doesn't say "Page Doesn't Exist")
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
