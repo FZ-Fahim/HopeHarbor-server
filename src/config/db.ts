@@ -66,8 +66,5 @@ async function ensureIndexes(database: Db) {
 }
 
 export function getDB(): Db {
-  if (!db) {
-    throw new Error('Database not initialized. Call connectDB first.');
-  }
-  return db;
+  return client.db(process.env.DB_NAME || 'hopeharbor');
 }
