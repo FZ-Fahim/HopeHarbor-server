@@ -27,6 +27,13 @@ export async function joinEvent(req: Request, res: Response): Promise<any> {
       return res.status(404).json({ success: false, message: 'Event not found' });
     }
 
+    if (event.organizerEmail?.toLowerCase() === user.email?.toLowerCase()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot join an initiative you are organizing',
+      });
+    }
+
     // Check if event is in the past
     if (new Date(event.date).getTime() < Date.now()) {
       return res.status(400).json({
@@ -83,6 +90,44 @@ export async function joinEvent(req: Request, res: Response): Promise<any> {
       success: false,
       message: 'Failed to join event',
     });
+  }
+}
+
+/**
+ * DELETE /api/events/:id/join
+ * Protected: Removes the current user's join record and decrements attendees.
+ */
+export async function leaveEvent(req: Request, res: Response): Promise<any> {
+  try {
+    const { id } = req.params;
+    if (typeof id !== 'string' || !ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid event ID format' });
+    }
+
+    const user = (req as any).user;
+    if (!user?.email) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const db = getDB();
+    const result = await db.collection<IJoinedEvent>('joined_events').deleteOne({
+      eventId: new ObjectId(id),
+      userEmail: user.email,
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: 'You have not joined this event' });
+    }
+
+    await db.collection<IEvent>('events').updateOne(
+      { _id: new ObjectId(id), attendeesCount: { $gt: 0 } },
+      { $inc: { attendeesCount: -1 } }
+    );
+
+    return res.status(200).json({ success: true, message: 'Successfully left the event' });
+  } catch (error) {
+    console.error('Error leaving event:', error);
+    return res.status(500).json({ success: false, message: 'Failed to leave event' });
   }
 }
 
@@ -171,6 +216,38 @@ export async function getJoinStatus(req: Request, res: Response): Promise<any> {
     return res.status(500).json({
       success: false,
       message: 'Failed to verify join status',
+    });
+  }
+}
+
+/**
+ * GET /api/events/:id/volunteers
+ * Public: Returns volunteer join records for an event, newest first.
+ */
+export async function getEventVolunteers(req: Request, res: Response): Promise<any> {
+  try {
+    const { id } = req.params;
+    if (typeof id !== 'string' || !ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid event ID format' });
+    }
+
+    const db = getDB();
+    const volunteers = await db
+      .collection('joined_events')
+      .find({ eventId: new ObjectId(id) })
+      .sort({ joinedAt: -1 })
+      .toArray();
+
+    return res.status(200).json({
+      success: true,
+      count: volunteers.length,
+      data: volunteers,
+    });
+  } catch (error) {
+    console.error('Error fetching event volunteers:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch event volunteers',
     });
   }
 }

@@ -173,6 +173,15 @@ const seedEvents = [
   },
 ];
 
+const volunteerPool = [
+  { name: 'Sadia Anjum', email: 'sadia.anjum@gmail.com' },
+  { name: 'Tanvir Hasan', email: 'tanvir.hasan@yahoo.com' },
+  { name: 'Nabila Rahman', email: 'nabila.r@outlook.com' },
+  { name: 'Kazi Farhan', email: 'kazi.farhan@dhaka.net' },
+  { name: 'Sumaiya Kabir', email: 'sumaiya.k@gmail.com' },
+  { name: 'Aman Ullah', email: 'aman.ullah@gmail.com' },
+];
+
 async function seedDatabase() {
   const client = new MongoClient(uri!);
 
@@ -182,12 +191,36 @@ async function seedDatabase() {
 
     const db = client.db(dbName);
     const eventsCollection = db.collection('events');
+    const joinedEventsCollection = db.collection('joined_events');
 
-    // Optional: clear existing events if you want a fresh start
-    // await eventsCollection.deleteMany({});
+    await eventsCollection.deleteMany({});
+    await joinedEventsCollection.deleteMany({});
 
     const result = await eventsCollection.insertMany(seedEvents);
-    console.log(`✅ Successfully seeded ${result.insertedCount} community events into "${dbName}"!`);
+    let volunteerRecordsInserted = 0;
+
+    for (let eventIndex = 0; eventIndex < seedEvents.length; eventIndex++) {
+      const eventId = result.insertedIds[eventIndex];
+      const assignedVolunteers = [...volunteerPool]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.floor(Math.random() * 2) + 2);
+
+      await joinedEventsCollection.insertMany(
+        assignedVolunteers.map((vol) => ({
+          eventId,
+          userName: vol.name,
+          userEmail: vol.email,
+          joinedAt: new Date(Date.now() - Math.floor(Math.random() * 86400000 * 3)),
+        })),
+      );
+      volunteerRecordsInserted += assignedVolunteers.length;
+
+      await eventsCollection.updateOne(
+        { _id: eventId },
+        { $set: { attendeesCount: assignedVolunteers.length } },
+      );
+    }
+    console.log(`Seeded ${result.insertedCount} events and ${volunteerRecordsInserted} volunteer records into "${dbName}".`);
   } catch (error) {
     console.error('❌ Failed to seed events:', error);
   } finally {
